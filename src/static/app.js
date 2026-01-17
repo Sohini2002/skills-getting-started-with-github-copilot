@@ -20,16 +20,34 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const spotsLeft = details.max_participants - details.participants.length;
 
+        // Create participants list with delete icons
+        const participantsList = document.createElement("ul");
+        details.participants.forEach(participant => {
+          const li = document.createElement("li");
+          li.className = "participant-item";
+          li.textContent = participant;
+
+          // Delete icon
+          const deleteIcon = document.createElement("span");
+          deleteIcon.className = "delete-icon";
+          deleteIcon.innerHTML = "&#128465;"; // Trash can icon
+          deleteIcon.title = "Remove participant";
+          deleteIcon.onclick = async function() {
+            await unregisterParticipant(name, participant, li);
+          };
+
+          li.appendChild(deleteIcon);
+          participantsList.appendChild(li);
+        });
+
         activityCard.innerHTML = `
           <h4>${name}</h4>
           <p>${details.description}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
           <p><strong>Participants:</strong></p>
-          <ul>
-            ${details.participants.map(participant => `<li>${participant}</li>`).join('')}
-          </ul>
         `;
+        activityCard.appendChild(participantsList);
 
         activitiesList.appendChild(activityCard);
 
@@ -39,6 +57,22 @@ document.addEventListener("DOMContentLoaded", () => {
         option.textContent = name;
         activitySelect.appendChild(option);
       });
+      // Function to unregister a participant
+      async function unregisterParticipant(activity, participant, liElement) {
+        // Optionally call backend to unregister
+        try {
+          const response = await fetch(`/activities/${encodeURIComponent(activity)}/unregister?email=${encodeURIComponent(participant)}`, {
+            method: "POST"
+          });
+          if (response.ok) {
+            liElement.remove();
+          } else {
+            alert("Failed to unregister participant.");
+          }
+        } catch (error) {
+          alert("Error unregistering participant.");
+        }
+      }
     } catch (error) {
       activitiesList.innerHTML = "<p>Failed to load activities. Please try again later.</p>";
       console.error("Error fetching activities:", error);
@@ -66,6 +100,8 @@ document.addEventListener("DOMContentLoaded", () => {
         messageDiv.textContent = result.message;
         messageDiv.className = "success";
         signupForm.reset();
+        // Refresh activities list to show new participant
+        fetchActivities();
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "error";
